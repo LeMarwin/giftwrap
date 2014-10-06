@@ -1,73 +1,88 @@
 module giftwrap;
 
-import std.stdio;
-import std.random;
-import std.math;
-import std.algorithm;
+import std.range;
 
 struct Point
 {
 	double x,y;
-}
-
-struct Vector
-{
-	double x,y,z;
-	double length()
+	bool opEquals()(auto ref const Point s) const
 	{
-		return sqrt(x^^2+y^^2+z^^2);
+		return (x==s.x)&&(y==s.y);
+	}
+	int opCmp()(auto ref const Point s) const
+	{
+		if(y<s.y)
+			return -1;
+		else
+			if(y==s.y)
+				if(x<s.x)
+					return -1;
+				else 
+					if(x>s.x)
+						return 1;
+					else 
+						return 0;
+			else
+				return 1;
+	}
+
+	unittest 
+	{
+		assert(Point(3,1)<Point(3,2));
+		assert(Point(1,1)>=Point(1,1));
+		assert(Point(3,3)<Point(4,3));
+		assert(Point(4,3)>Point(3,3));
+		assert(Point(3,2)>Point(3,1));
 	}
 }
 
-double dot(Vector a, Vector b)
+enum Orient {none, left, right};
+
+Orient turn(Point a, Point b, Point c)
 {
-	return a.x*b.x+a.y*b.y+a.z*b.z;
+	double val = (b.y - a.y) * (c.x - b.x) -
+            (b.x - a.x) * (c.y - b.y);
+    if(val==0) return Orient.none;
+    return (val>0)? Orient.right : Orient.left;
 }
 
-double cos(Vector a, Vector b)
+unittest 
 {
-	return dot(a,b)/(a.length*b.length);
+	Point a = Point(1,1);
+	Point b = Point(2,1);
+	Point l = Point(3,2);
+	Point r = Point(3,0);
+	Point n = Point(3,1);
+	assert(turn(a,b,n)==Orient.none);
+	assert(turn(a,b,l)==Orient.left);
+	assert(turn(a,b,r)==Orient.right);
 }
 
-
-Point[] heap = [
-					Point(4.41017,4.16502),
-					Point(1.81363,2.10894),
-					Point(5.18948,9.88794),
-					Point(1.99674,3.78617),
-					Point(9.41465,4.28535),
-					Point(3.02345,5.32727),
-					Point(6.51049,1.12999),
-					Point(6.35273,8.97888)
-				];
-
-Point searchMin(Point[] data)
+double distSq(Point a, Point b)
 {
-	Point res=data[0];
-	bool f(Point a, Point b)
+	return (a.x-b.x)^^2+(a.y-b.y)^^2;
+}
+
+Point[] convex(Point[] points)
+{
+	Point[] hull = [points[0]];
+	int s = 0;
+	int q = 1;
+	do 
 	{
-		return (a.x>b.x)&&(a.y<b.y);
-	}
-	foreach(int i, p;data)
-	{
-		if(f(p,res))
+		q = (s+1)%points.length;
+		foreach(int i, p;points)
 		{
-			res = p;
+			Orient t = turn(points[s],points[q],p);
+			if(t==Orient.none)
+				if(distSq(points[s],p)>distSq(points[s],points[q]))
+					q = i;
+				else {}
+			else if(t==Orient.left)
+				q = i;
 		}
-	}
-	return res;
-}
-
-void main()
-{
-	Vector a = Vector(1,1,0);
-	Vector b = Vector(1,0,1);
-	writeln(cos(a,b));
-	foreach(i;heap)
-	{
-		writeln(i);	
-	}
-
-	Point min = reduce!((a,b)=>{if(a.x>1) return b; else return a;})(heap);
-	writeln("\nMin:\t",min);	
+		hull~=points[q];
+		s = q;
+	} while(s!=0);
+	return hull;
 }
